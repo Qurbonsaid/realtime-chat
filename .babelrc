@@ -1,0 +1,21 @@
+{
+  "plugins": [
+    [
+      "module-resolver",
+      {
+        "root": ["./"],
+        "extensions": [".json", ".ts", ".js"],
+        "alias": {
+          "models": "./src/models",
+          "services": "./src/services",
+          "typings": "./src/typings",
+          "utils": "./src/utils",
+          "constants": "./src/constants",
+          "tst": "./testing",
+          "controllers": "./src/controllers",
+          "underscore": "lodash"
+        }
+      }
+    ]
+  ]
+}
