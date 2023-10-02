@@ -100,17 +100,17 @@ export class MessageController {
       const data = await Message.find(
         {$or: [{sender: user._id}, {receiver: user._id}]},
         {sender: 1, read: 1, text: 1},
-        {sort: {updatedAt: -1}},
+        {sort: {createdAt: -1}},
       )
-      res.status(StatusCodes.OK).json({
-        success: true,
-        data,
-      })
       data.forEach(async message => {
         if (message.sender.equals(user._id) && !message.read) {
           message.read = true
           await message.save()
         }
+      })
+      res.status(StatusCodes.OK).json({
+        success: true,
+        data,
       })
     } catch (error: any) {
       return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
