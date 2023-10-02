@@ -4,6 +4,8 @@ import {loginV, registerV} from 'validators/auth.validator'
 
 import {Router} from 'express'
 
+import {validate} from '../validators'
+
 export const router = Router()
 
 /**
@@ -13,7 +15,7 @@ export const router = Router()
  * @apiGroup Auth
  * @apiSuccess (200) {Object}
  */
-router.post('/login', loginV, AuthController.login)
+router.post('/login', loginV(), validate, AuthController.login)
 
 /**
  * @api {post} /auth/register
@@ -22,7 +24,7 @@ router.post('/login', loginV, AuthController.login)
  * @apiGroup Auth
  * @apiSuccess (201) {Object}
  */
-router.post('/register', registerV, AuthController.register)
+router.post('/register', registerV(), validate, AuthController.register)
 
 /**
  * @api {post} /auth/refresh-token

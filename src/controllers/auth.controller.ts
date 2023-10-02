@@ -36,9 +36,13 @@ export class AuthController {
   }
   public static async register(req: Request, res: Response) {
     try {
-      const {fullName, username, password} = req.body
+      const {fullName, username} = req.body
+      const password = await HashingHelpers.generatePassword(req.body.password as string)
       const data = await User.create({fullName, username, password})
-      return res.status(StatusCodes.CREATED).json({data})
+      return res.status(StatusCodes.CREATED).json({
+        success: true,
+        data,
+      })
     } catch (error: any) {
       return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
         success: false,
