@@ -1,0 +1,168 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "realtime chat",
+    "description": "using web socket",
+    "contact": {
+      "email": "qurbonsaidrayimov2004@gmail.com"
+    },
+    "version": "1.0.11"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api"
+    }
+  ],
+  "tags": [
+    {
+      "name": "user",
+      "description": "Operations about user"
+    },
+    {
+      "name": "message",
+      "description": "Operations about messages"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["user"],
+        "description": "user login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "example": {
+                  "username": "john",
+                  "password": "doe2023"
+                }
+              }
+            }
+          }
+        },
+        "responses": {}
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["user"],
+        "description": "user register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        },
+        "responses": {}
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["user"],
+        "description": "get signed user",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "tags": ["user"],
+        "description": "pass refresh token inside of access token",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/message/send": {
+      "post": {
+        "tags": ["message"],
+        "description": "send message",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Message"
+              }
+            }
+          }
+        },
+        "responses": {}
+      }
+    },
+    "/message/chats": {
+      "get": {
+        "tags": ["message"],
+        "description": "get all chats",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/message/all": {
+      "get": {
+        "tags": ["message"],
+        "description": "get all messages from chat",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "username",
+            "schema": {"type": "string"},
+            "description": "jane"
+          }
+        ],
+        "responses": {}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "username": {"type": "string", "example": "john"},
+          "fullName": {"type": "string", "example": "John Doe"},
+          "password": {"type": "string", "example": "doe2023"}
+        },
+        "required": ["username", "fullName", "password"]
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "username": {"type": "string", "example": "jane"},
+          "text": {"type": "string", "example": "Hi!"}
+        },
+        "required": ["username", "text"]
+      }
+    }
+  }
+}

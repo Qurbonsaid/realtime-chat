@@ -1,6 +1,7 @@
 import bodyParser from 'body-parser'
 import dotenv from 'dotenv'
 import {ReasonPhrases, StatusCodes} from 'http-status-codes'
+import swaggerUi from 'swagger-ui-express'
 
 import express, {Express, NextFunction, Request, Response} from 'express'
 
@@ -10,6 +11,8 @@ import {Controller} from './controllers/controller.interface'
 import {errorMiddleware} from './middlewares/error.middleware'
 import {Routes} from './routes'
 import {HttpException} from './utils/exception'
+
+const swaggerDocument = require('./swagger.json')
 
 dotenv.config()
 
@@ -36,6 +39,7 @@ app.get(ConstantAPI.ROOT, (req: Request, res: Response, next: NextFunction) => {
     return next(new HttpException(StatusCodes.INTERNAL_SERVER_ERROR, ReasonPhrases.INTERNAL_SERVER_ERROR, err.message))
   }
 })
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument))
 Routes.forEach((controller: Controller) => {
   app.use(ConstantAPI.API + controller.path, controller.router)
 })
