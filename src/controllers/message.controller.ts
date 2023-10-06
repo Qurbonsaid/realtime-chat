@@ -33,7 +33,7 @@ export class MessageController {
   public static async getChats(req: Request, res: Response) {
     try {
       const {
-        user: {_id: userID},
+        user: {_id: userID, username},
       } = req.body
       const data = await Message.aggregate([
         {
@@ -64,9 +64,15 @@ export class MessageController {
           $unwind: '$chats',
         },
         {
+          $sort: {createdAt: -1},
+        },
+        {
           $group: {
             _id: {_id: '$chats._id', fullName: '$chats.fullName', username: '$chats.username'},
             unreadCount: {$sum: {$cond: [{$and: [{$eq: ['$sender', '$chats._id']}, {$eq: ['$read', false]}]}, 1, 0]}},
+            lastMessage: {
+              $first: {sender: {$cond: [{$eq: ['$chats._id', '$sender']}, '$chats.username', username]}, text: '$text'},
+            },
           },
         },
         {
@@ -75,6 +81,7 @@ export class MessageController {
             fullName: '$_id.fullName',
             username: '$_id.username',
             unreadCount: 1,
+            lastMessage: 1,
           },
         },
       ])
@@ -98,10 +105,15 @@ export class MessageController {
         throw new HttpException(StatusCodes.NOT_FOUND, ReasonPhrases.NOT_FOUND, 'User not found!')
       }
       const data = await Message.find(
-        {$or: [{sender: user._id}, {receiver: user._id}]},
+        {
+          $or: [
+            {sender: user._id, receiver: req.body.user._id},
+            {sender: req.body.user._id, receiver: user._id},
+          ],
+        },
         {sender: 1, read: 1, text: 1},
-        {sort: {createdAt: -1}},
-      )
+        {sort: {createdAt: 1}},
+      ).populate('sender', 'fullName username')
       data.forEach(async message => {
         if (message.sender.equals(user._id) && !message.read) {
           message.read = true
