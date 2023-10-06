@@ -6,30 +6,6 @@ import {HttpException} from 'utils/exception'
 import {Request, Response} from 'express'
 
 export class MessageController {
-  public static async sendMessage(req: Request, res: Response) {
-    try {
-      const {
-        username,
-        text,
-        user: {_id: sender},
-      } = req.body
-      const receiver = await User.findOne({username})
-      if (!receiver) {
-        throw new HttpException(StatusCodes.NOT_FOUND, ReasonPhrases.NOT_FOUND, 'User not found!')
-      }
-      const data = await Message.create({sender, receiver: receiver._id, text})
-      res.status(StatusCodes.CREATED).json({
-        success: true,
-        data,
-      })
-    } catch (error: any) {
-      return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        error,
-      })
-    }
-  }
-
   public static async getChats(req: Request, res: Response) {
     try {
       const {

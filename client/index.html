@@ -34,7 +34,7 @@
       </section>
     </main>
     <script>
-      var accessToken, refreshToken, selectedChat, loggedUserName, userFullName
+      var token, refreshToken, selectedChat, loggedUserName, userFullName, socket
       const API = 'http://localhost:8080/api'
 
       async function doRegister() {
@@ -74,9 +74,31 @@
           document.querySelector('#displayName').innerHTML = 'Hello, ' + res.data.fullName
           loggedUserName = res.data.username
           userFullName = res.data.fullName
-          accessToken = res.token
+          token = res.token
           refreshToken = res.refreshToken
           updateChats()
+          socket = io(API.replace('/api', ''), {
+            auth: {token},
+            path: '/api/message/send',
+          })
+          socket.on('message', data => {
+            if (data) {
+              const lastMessage = document.querySelector(
+                '#' + data.sender.username === loggedUserName
+                  ? loggedUserName
+                  : data.receiver.username + ' .lastMessage',
+              )
+              if (lastMessage)
+                lastMessage.innerHTML =
+                  (data.sender.username === loggedUserName ? 'You: ' : data.sender.username) + data.text
+              updateChats()
+              updateUI()
+              document.querySelector('#message').value = ''
+            } else {
+              console.error(socket)
+              alert('Something went wrong!')
+            }
+          })
         } else {
           console.error(await data.json())
           alert('Something went wrong!')
@@ -91,7 +113,7 @@
             await fetch(API + '/message/chats', {
               method: 'GET',
               headers: {
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${token}`,
               },
             })
           ).json()
@@ -109,7 +131,7 @@
       }
 
       function doLogout() {
-        accessToken = null
+        token = null
         refreshToken = null
         selectedChat = null
         document.querySelector('.register').setAttribute('style', 'display: flex;')
@@ -133,7 +155,7 @@
           await (
             await fetch(API + `/message/all?username=${selectedChat}`, {
               method: 'GET',
-              headers: {Authorization: `Bearer ${accessToken}`},
+              headers: {Authorization: `Bearer ${token}`},
             })
           ).json()
         ).data
@@ -148,6 +170,13 @@
       }
 
       async function getChat(chatTitle, sender) {
+        document.querySelector('section').innerHTML = `<div class="topBar">
+          <span id="topChatTitle"></span><span id="sender"></span>
+        </div>
+        <div id="chat"></div>
+        <footer>
+          <textarea name="message" id="message"></textarea><button onclick="sendMessage()">Send</button>
+        </footer>`
         const chatView = document.querySelector('#chat')
         if (selectedChat === sender) {
           chatView.scrollTop = chatView.scrollHeight
@@ -169,25 +198,7 @@
         }
         const chatView = document.querySelector('#chat')
         chatView.scrollTop = chatView.scrollHeight
-        const res = await fetch(API + '/message/send', {
-          method: 'POST',
-          body: JSON.stringify({username: selectedChat, text}),
-          headers: {
-            'Content-type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-        })
-
-        if (res.ok) {
-          const lastMessage = document.querySelector('.lastMessage')
-          if (lastMessage) lastMessage.innerHTML = 'You: ' + text
-          updateChats()
-          updateUI()
-          document.querySelector('#message').value = ''
-        } else {
-          console.error(res)
-          alert('Something went wrong!')
-        }
+        socket.emit('message', selectedChat, text)
       }
     </script>
   </body>

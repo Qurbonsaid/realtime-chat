@@ -1,21 +1,12 @@
 import {MessageController} from 'controllers/message.controller'
 import {auth} from 'middlewares/auth.middleware'
-import {getChatV, sendV} from 'validators/message.validator'
+import {getChatV} from 'validators/message.validator'
 
 import {Router} from 'express'
 
 import {validate} from '../validators'
 
 export const router = Router()
-
-/**
- * @api {post} /message/send
- * @apiName Send message
- * @apiBody username,text
- * @apiGroup Message
- * @apiSuccess 201 {Object}
- */
-router.post('/send', auth, sendV(), validate, MessageController.sendMessage)
 
 /**
  * @api {get} /message/chats
