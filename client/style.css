@@ -1,0 +1,162 @@
+html, body {
+  margin: 0px;
+  padding: 0;
+  height: 100vh;
+}
+
+.login, .register {
+  display: flex;
+  margin-right: 3rem;
+}
+
+.login > *, .register > * {
+  margin: 16px;
+}
+
+.userInfo {
+  margin: auto 1rem;
+  display: none;
+}
+
+nav {
+  width: 100%;
+  height: 5%;
+  display: flex;
+  justify-content: right;
+  gap: 10%;
+  background-color: gainsboro;
+}
+
+aside {
+  display: flex;
+  flex-direction: column;
+  width: 10vw;
+  height: 100%;
+  background-color: aquamarine;
+}
+
+.newChat {
+  display: flex;
+  height: 4vh;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.newChat > button {
+  font-size: large;
+  cursor: pointer;
+}
+
+.newChat:hover {
+  background-color: #00000070;
+  cursor: pointer;
+}
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: start;
+  width: 100%;
+  height: 4vh;
+}
+
+.chat > * {
+  margin-left: 1rem;
+}
+
+.chat:hover {
+  background-color: #00000070;
+  cursor: pointer;
+}
+
+.count {
+  color: white;
+  display: flex;
+  width: 2rem;
+  height: 2rem;
+  margin: -1rem 7vw;
+  left: 1rem;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  background-color: orchid;
+  border-radius: 50%;
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: aqua;
+  width: 100%;
+  height: 4.5%;
+}
+
+.topBar > * {
+  margin: 1rem;
+}
+
+main {
+  background-color: rgb(133, 198, 255);
+  display: flex;
+  width: 100%;
+  height: 94%;
+}
+
+section {
+  visibility: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+footer {
+  display: flex;
+  width: 100%;
+  height: 5vh;
+  background-color: bisque;
+}
+
+footer textarea {
+  width: 100%;
+  height: 4.5vh;
+  font-size: large;
+}
+
+footer button {
+  position: fixed;
+  right: 0;
+  width: 4vw;
+  height: 5vh;
+  font-size: large;
+}
+
+#chat {
+  display: flex;
+  flex-direction: column;
+  overflow-y: scroll;
+  width: 100%;
+  height: 90%;
+}
+
+.fromSender {
+  margin: 1rem auto 1rem 50%;
+  padding: 0.5rem;
+  font-size: 1rem;
+  background-color: gray;
+  border-radius: 1rem;
+}
+
+.fromUser {
+  margin: 1rem 1rem 1rem auto;
+  padding: 0.5rem;
+  font-size: larger;
+  background-color: cadetblue;
+  border-radius: 1rem;
+}
+
+.fromUser i {
+  position: relative;
+  top: 0.5rem;
+}

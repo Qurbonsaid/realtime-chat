@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realtime chat</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <nav>
+      <div class="userInfo">
+        <span id="displayName"></span>
+        <button onclick="doLogout()">Log out</button>
+      </div>
+      <div class="register">
+        <p>Full name: <input id="reg_fullName" type="text" /></p>
+        <p>Username: <input id="reg_username" type="text" /></p>
+        <p>Password: <input id="reg_password" type="password" /></p>
+        <p><button onclick="doRegister()">Register</button></p>
+      </div>
+      <div class="login">
+        <p>Username: <input id="log_username" type="text" value="john" /></p>
+        <p>Password: <input id="log_password" type="password" value="doe2023" /></p>
+        <p><button onclick="doLogin()">Login</button></p>
+      </div>
+    </nav>
+    <main>
+      <aside></aside>
+      <section>
+        <div class="topBar"><span id="topChatTitle"></span><span id="sender"></span></div>
+        <div id="chat"></div>
+        <footer><textarea name="message" id="message"></textarea><button onclick="sendMessage()">Send</button></footer>
+      </section>
+    </main>
+    <script>
+      var accessToken, refreshToken, selectedChat, loggedUserName, userFullName
+      const API = 'http://localhost:8080/api'
+
+      async function doRegister() {
+        const fullName = document.querySelector('#reg_fullName').value
+        const username = document.querySelector('#reg_username').value
+        const password = document.querySelector('#reg_password').value
+        const data = await fetch(API + '/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({fullName, username, password}),
+          headers: {
+            'Content-type': 'application/json',
+          },
+        })
+        if (data.status === 201) {
+          document.querySelector('.register').setAttribute('style', 'display: none;')
+        } else {
+          console.error(data)
+          alert('Something went wrong!')
+        }
+      }
+
+      async function doLogin() {
+        const username = document.querySelector('#log_username').value
+        const password = document.querySelector('#log_password').value
+        const data = await fetch(API + '/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({username, password}),
+          headers: {
+            'Content-type': 'application/json',
+          },
+        })
+        if (data.ok) {
+          document.querySelector('.register').setAttribute('style', 'display: none;')
+          document.querySelector('.login').setAttribute('style', 'display: none;')
+          const res = await data.json()
+          document.querySelector('.userInfo').setAttribute('style', 'margin: auto 1em; display: block;')
+          document.querySelector('#displayName').innerHTML = 'Hello, ' + res.data.fullName
+          loggedUserName = res.data.username
+          userFullName = res.data.fullName
+          accessToken = res.token
+          refreshToken = res.refreshToken
+          updateChats()
+        } else {
+          console.error(await data.json())
+          alert('Something went wrong!')
+        }
+      }
+
+      async function updateChats() {
+        const chatsView = document.querySelector('aside')
+        chatsView.innerHTML = `<div class="newChat"><button onclick="getChat('New Chat', prompt('Enter username...'))">New Chat</button></div>`
+        const chats = (
+          await (
+            await fetch(API + '/message/chats', {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            })
+          ).json()
+        ).data
+        for (const chat of chats) {
+          chatsView.innerHTML += `\n<div class="chat" id="${chat.username}" onclick="getChat('${chat.fullName}', '${
+            chat.username
+          }')">
+              <span class="chatTitle">${chat.fullName}</span>
+              ${chat.unreadCount ? '<span class="count">' + chat.unreadCount + '</span>' : ''}
+              <span class="lastMessage">${chat.lastMessage.sender === loggedUserName ? 'You' : chat.username}: ${
+                chat.lastMessage.text
+              }</span></div>`
+        }
+      }
+
+      function doLogout() {
+        accessToken = null
+        refreshToken = null
+        selectedChat = null
+        document.querySelector('.register').setAttribute('style', 'display: flex;')
+        document.querySelector('.login').setAttribute('style', 'display: flex;')
+        document.querySelector('.userInfo').setAttribute('style', 'display: none;')
+        document.querySelector('aside').innerHTML = ''
+        document.querySelector('section').innerHTML = `<div class="topBar">
+          <span id="topChatTitle"></span><span id="sender"></span>
+        </div>
+        <div id="chat"></div>
+        <footer>
+          <textarea name="message" id="message"></textarea><button onclick="sendMessage()">Send</button>
+        </footer>`
+        document.querySelector('section').style.visibility = 'hidden'
+      }
+
+      async function updateUI() {
+        const chatView = document.querySelector('#chat')
+        chatView.innerHTML = ''
+        const messages = (
+          await (
+            await fetch(API + `/message/all?username=${selectedChat}`, {
+              method: 'GET',
+              headers: {Authorization: `Bearer ${accessToken}`},
+            })
+          ).json()
+        ).data
+        messages.forEach(message => {
+          chatView.innerHTML += `<div class="${message.sender.username === selectedChat ? 'fromSender' : 'fromUser'}">${
+            message.text
+          }
+          ${message.sender.username !== selectedChat && message.read ? '<i>&#10003;</i>' : ''}
+        </div>`
+        })
+        chatView.scrollTop = chatView.scrollHeight
+      }
+
+      async function getChat(chatTitle, sender) {
+        const chatView = document.querySelector('#chat')
+        if (selectedChat === sender) {
+          chatView.scrollTop = chatView.scrollHeight
+          return true
+        }
+        selectedChat = sender
+        const countView = document.querySelector('#' + sender + ' .count')
+        if (countView) countView.style.visibility = 'hidden'
+        document.querySelector('section').style.visibility = 'visible'
+        document.querySelector('#topChatTitle').innerHTML = chatTitle
+        document.querySelector('#sender').innerHTML = 'Username: ' + sender
+        updateUI()
+      }
+
+      async function sendMessage() {
+        const text = document.querySelector('#message').value
+        if (!text) {
+          return false
+        }
+        const chatView = document.querySelector('#chat')
+        chatView.scrollTop = chatView.scrollHeight
+        const res = await fetch(API + '/message/send', {
+          method: 'POST',
+          body: JSON.stringify({username: selectedChat, text}),
+          headers: {
+            'Content-type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+
+        if (res.ok) {
+          const lastMessage = document.querySelector('.lastMessage')
+          if (lastMessage) lastMessage.innerHTML = 'You: ' + text
+          updateChats()
+          updateUI()
+          document.querySelector('#message').value = ''
+        } else {
+          console.error(res)
+          alert('Something went wrong!')
+        }
+      }
+    </script>
+  </body>
+</html>
