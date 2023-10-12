@@ -17,10 +17,6 @@
     {
       "name": "user",
       "description": "Operations about user"
-    },
-    {
-      "name": "message",
-      "description": "Operations about messages"
     }
   ],
   "paths": {
@@ -84,10 +80,10 @@
         "responses": {}
       }
     },
-    "/message/send": {
+    "/upload": {
       "post": {
-        "tags": ["message"],
-        "description": "send message",
+        "consumes": ["multipart/form-data"],
+        "tags": ["Upload"],
         "security": [
           {
             "BearerAuth": []
@@ -95,45 +91,19 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Message"
+                "type": "object",
+                "properties": {
+                  "document": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
               }
             }
           }
         },
-        "responses": {}
-      }
-    },
-    "/message/chats": {
-      "get": {
-        "tags": ["message"],
-        "description": "get all chats",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/message/all": {
-      "get": {
-        "tags": ["message"],
-        "description": "get all messages from chat",
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "username",
-            "schema": {"type": "string"},
-            "description": "jane"
-          }
-        ],
         "responses": {}
       }
     }
@@ -154,14 +124,6 @@
           "password": {"type": "string", "example": "doe2023"}
         },
         "required": ["username", "fullName", "password"]
-      },
-      "Message": {
-        "type": "object",
-        "properties": {
-          "username": {"type": "string", "example": "jane"},
-          "text": {"type": "string", "example": "Hi!"}
-        },
-        "required": ["username", "text"]
       }
     }
   }

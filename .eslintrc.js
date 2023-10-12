@@ -80,7 +80,7 @@ module.exports = {
     'space-before-function-paren': 'off',
     'spaced-comment': 'error',
     'unicorn/filename-case': 'error',
-    'unicorn/no-null': 'error',
+    'unicorn/no-null': 'off',
     'use-isnan': 'error',
     'valid-typeof': 'off',
     semi: 'off',

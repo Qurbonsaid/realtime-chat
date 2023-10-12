@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Realtime chat</title>
     <link rel="stylesheet" href="./style.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
   </head>
   <body>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -27,15 +28,42 @@
     </nav>
     <main>
       <aside></aside>
-      <section>
-        <div class="topBar"><span id="topChatTitle"></span><span id="sender"></span></div>
-        <div id="chat"></div>
-        <footer><textarea name="message" id="message"></textarea><button onclick="sendMessage()">Send</button></footer>
-      </section>
+      <section></section>
     </main>
+    <div class="modal" id="sendDocument" tabindex="-1" role="dialog" aria-labelledby="sendDocument" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Send Document</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="media-body">
+              <div class="preview"></div>
+              <textarea class="width-100" id="caption" data-emoji="true"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script>
       var token, refreshToken, selectedChat, loggedUserName, userFullName, socket
-      const API = 'http://localhost:8080/api'
+      const BACKEND_URL = 'http://localhost:8080'
+      const API = BACKEND_URL + '/api'
+
+      const escapeHtml = unsafe =>
+        unsafe
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;')
 
       async function doRegister() {
         const fullName = document.querySelector('#reg_fullName').value
@@ -76,28 +104,57 @@
           userFullName = res.data.fullName
           token = res.token
           refreshToken = res.refreshToken
-          updateChats()
-          socket = io(API.replace('/api', ''), {
+          socket = io(BACKEND_URL, {
             auth: {token},
-            path: '/api/message/send',
+            path: '/api/chat',
+          }).connect()
+          socket.emit('getChats')
+          socket.on('chats', updateChats)
+          socket.on('allMessages', (allMessages, chattingUser) => {
+            if (chattingUser.username === selectedChat) {
+              updateUI(allMessages)
+            } else {
+              socket.emit('chats')
+            }
           })
-          socket.on('message', data => {
-            if (data) {
+          socket.on('error', error => {
+            alert(error.msg)
+            console.error(error)
+          })
+          socket.on('newMessage', newMessage => {
+            if (newMessage) {
               const lastMessage = document.querySelector(
-                '#' + data.sender.username === loggedUserName
+                '#' + newMessage.sender.username === loggedUserName
                   ? loggedUserName
-                  : data.receiver.username + ' .lastMessage',
+                  : newMessage.receiver.username + ' .lastMessage',
               )
               if (lastMessage)
                 lastMessage.innerHTML =
-                  (data.sender.username === loggedUserName ? 'You: ' : data.sender.username) + data.text
-              updateChats()
-              updateUI()
+                  (newMessage.sender.username === loggedUserName ? 'You: ' : newMessage.sender.username) +
+                  newMessage.text
               document.querySelector('#message').value = ''
+              const chatView = document.querySelector('#chat')
+              chatView.innerHTML += `<div class="${
+                newMessage.sender.username === selectedChat ? 'fromSender' : 'fromUser'
+              }">${newMessage.text}
+              ${newMessage.sender.username !== selectedChat && newMessage.read ? '<i>&#10003;</i>' : ''}
+              </div>`
+              chatView.scrollTop = chatView.scrollHeight
             } else {
               console.error(socket)
               alert('Something went wrong!')
             }
+          })
+          socket.on('typingEvent', typingUser => {
+            document.querySelector(`#${typingUser} .lastMessage`).innerHTML = '...typing'
+            document.querySelector(`#${typingUser} .lastMessage`).style.color = 'blue'
+            setTimeout(() => socket.emit('getChats'), 2000)
+          })
+          socket.on('userOnline', onlineUser => {
+            document.querySelector(`#${onlineUser} .status`).className = 'status online'
+          })
+          socket.on('userOffline', offlineUser => {
+            document.querySelector(`#${offlineUser} .status`).className = 'status offline'
           })
         } else {
           console.error(await data.json())
@@ -105,28 +162,21 @@
         }
       }
 
-      async function updateChats() {
+      function updateChats(chats) {
         const chatsView = document.querySelector('aside')
-        chatsView.innerHTML = `<div class="newChat"><button onclick="getChat('New Chat', prompt('Enter username...'))">New Chat</button></div>`
-        const chats = (
-          await (
-            await fetch(API + '/message/chats', {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            })
-          ).json()
-        ).data
+        chatsView.innerHTML = `<div class="newChat">
+          <button onclick="((input) => {if (input) return getChat('New Chat', input); else return alert('User not found!') })(prompt('Enter username...'))">
+            New Chat</button></div>`
         for (const chat of chats) {
           chatsView.innerHTML += `\n<div class="chat" id="${chat.username}" onclick="getChat('${chat.fullName}', '${
             chat.username
           }')">
-              <span class="chatTitle">${chat.fullName}</span>
-              ${chat.unreadCount ? '<span class="count">' + chat.unreadCount + '</span>' : ''}
-              <span class="lastMessage">${chat.lastMessage.sender === loggedUserName ? 'You' : chat.username}: ${
-                chat.lastMessage.text
-              }</span></div>`
+          <span class="status ${chat.online ? 'online' : 'offline'}">●</span>
+          <span class="chatTitle">${chat.fullName}</span>
+          ${chat.unreadCount ? '<span class="count">' + chat.unreadCount + '</span>' : ''}
+          <span class="lastMessage">${chat.lastMessage.sender === loggedUserName ? 'You' : chat.username}: ${escapeHtml(
+            chat.lastMessage.text,
+          )}</span></div>`
         }
       }
 
@@ -138,27 +188,14 @@
         document.querySelector('.login').setAttribute('style', 'display: flex;')
         document.querySelector('.userInfo').setAttribute('style', 'display: none;')
         document.querySelector('aside').innerHTML = ''
-        document.querySelector('section').innerHTML = `<div class="topBar">
-          <span id="topChatTitle"></span><span id="sender"></span>
-        </div>
-        <div id="chat"></div>
-        <footer>
-          <textarea name="message" id="message"></textarea><button onclick="sendMessage()">Send</button>
-        </footer>`
+        document.querySelector('section').innerHTML = ''
         document.querySelector('section').style.visibility = 'hidden'
+        socket.disconnect()
       }
 
-      async function updateUI() {
+      async function updateUI(messages) {
         const chatView = document.querySelector('#chat')
         chatView.innerHTML = ''
-        const messages = (
-          await (
-            await fetch(API + `/message/all?username=${selectedChat}`, {
-              method: 'GET',
-              headers: {Authorization: `Bearer ${token}`},
-            })
-          ).json()
-        ).data
         messages.forEach(message => {
           chatView.innerHTML += `<div class="${message.sender.username === selectedChat ? 'fromSender' : 'fromUser'}">${
             message.text
@@ -170,25 +207,27 @@
       }
 
       async function getChat(chatTitle, sender) {
+        const chatView = document.querySelector('#chat')
+        if (selectedChat === sender) {
+          socket.emit('getChats')
+          return true
+        }
         document.querySelector('section').innerHTML = `<div class="topBar">
           <span id="topChatTitle"></span><span id="sender"></span>
         </div>
         <div id="chat"></div>
         <footer>
-          <textarea name="message" id="message"></textarea><button onclick="sendMessage()">Send</button>
+          <textarea id="message" onkeyup="typingEvent(event)"></textarea>
+          <label for="files"><img src="./paperclip.png"></label><input id="files" type="file" hidden onchange="sendFile(this.files[0])">
+          <button id="sendButton" onclick="sendMessage()">Send</button>
         </footer>`
-        const chatView = document.querySelector('#chat')
-        if (selectedChat === sender) {
-          chatView.scrollTop = chatView.scrollHeight
-          return true
-        }
         selectedChat = sender
         const countView = document.querySelector('#' + sender + ' .count')
         if (countView) countView.style.visibility = 'hidden'
         document.querySelector('section').style.visibility = 'visible'
         document.querySelector('#topChatTitle').innerHTML = chatTitle
         document.querySelector('#sender').innerHTML = 'Username: ' + sender
-        updateUI()
+        socket.emit('getChat', selectedChat)
       }
 
       async function sendMessage() {
@@ -196,9 +235,56 @@
         if (!text) {
           return false
         }
+        socket.emit('message', selectedChat, text)
         const chatView = document.querySelector('#chat')
         chatView.scrollTop = chatView.scrollHeight
-        socket.emit('message', selectedChat, text)
+      }
+
+      function typingEvent(event) {
+        if (event.which === 13 && !event.shiftKey) {
+          event.preventDefault()
+          sendMessage()
+          return false
+        } else {
+          socket.emit('typing', loggedUserName, selectedChat)
+        }
+      }
+
+      function sendFile(file) {
+        var isImage
+        if ((isImage = file.type.includes('image'))) {
+          document.querySelector('.modal .preview').innerHTML = `<img class="mw-100 mh-100" src="${URL.createObjectURL(
+            file,
+          )}">`
+        } else {
+          document.querySelector('.modal .preview').innerHTML = `<a href="${URL.createObjectURL(file)}">${
+            file.name
+          }</a>`
+        }
+        $('#sendDocument').modal('show')
+        const form = new FormData()
+        form.append('document', file)
+        document.querySelector('#sendDocument .btn-primary').addEventListener('click', async e => {
+          e.preventDefault()
+          const res = await (
+            await fetch(API + '/upload', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              body: form,
+            })
+          ).json()
+          socket.emit(
+            'document',
+            selectedChat,
+            isImage,
+            res.data.filename,
+            BACKEND_URL + res.data.document,
+            document.querySelector('#caption').value,
+          )
+          $('#sendDocument').modal('hide')
+        })
       }
     </script>
   </body>
