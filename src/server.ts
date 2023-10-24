@@ -36,23 +36,13 @@ const port = process.env.PORT || 5000
 
 const onlineUsers: any = {}
 
-if (!fs.existsSync('./public/uploads')) {
-  fs.mkdirSync('./public/uploads', {recursive: true})
-}
-
-app.use(express.static(path.join(__dirname, '../public')))
-
-app.use(cors())
+app.use(
+  cors({
+    origin: '*',
+  }),
+)
 app.use(bodyParser.json())
-
 app.use(bodyParser.urlencoded({extended: true}))
-
-CONNECT_DB()
-  .then(() => console.warn('Connected DB'))
-  .catch(err => {
-    console.warn(err)
-  })
-
 app.use(
   contentSecurityPolicy({
     useDefaults: true,
@@ -68,6 +58,18 @@ app.use(
   }),
 )
 app.use(helmet())
+
+if (!fs.existsSync('./public/uploads')) {
+  fs.mkdirSync('./public/uploads', {recursive: true})
+}
+
+app.use(express.static(path.join(__dirname, '../public')))
+
+CONNECT_DB()
+  .then(() => console.warn('Connected DB'))
+  .catch(err => {
+    console.warn(err)
+  })
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument))
 
@@ -86,7 +88,7 @@ Routes.forEach((controller: Controller) => {
 const io = new Server(server, {
   path: '/api/chat',
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: '*',
   },
 })
 
@@ -99,19 +101,19 @@ io.use(async (socket, next) => {
     }
 
     if (!token) {
-      throw new HttpException(StatusCodes.UNAUTHORIZED, ReasonPhrases.UNAUTHORIZED, 'Unauthorized!')
+      return socket.emit('error', 'Unauthorized!')
     }
 
     const decoded = JwtHelpers.verify(token)
 
     if (!decoded.id) {
-      throw new HttpException(StatusCodes.UNAUTHORIZED, ReasonPhrases.UNAUTHORIZED, 'Unauthorized!')
+      return socket.emit('error', 'Unauthorized!')
     }
 
     const user = await User.findById(decoded.id)
 
     if (!user) {
-      throw new HttpException(StatusCodes.NOT_FOUND, ReasonPhrases.NOT_FOUND, 'User not found!')
+      return socket.emit('error', 'User not found!')
     }
 
     socket.data.user = user
@@ -194,7 +196,9 @@ io.on('connection', socket => {
           unreadCount: {$sum: {$cond: [{$and: [{$eq: ['$sender', '$chats._id']}, {$eq: ['$read', false]}]}, 1, 0]}},
           lastMessage: {
             $first: {
-              sender: {$cond: [{$eq: ['$chats._id', '$sender']}, '$chats.username', username]},
+              sender: {
+                $cond: [{$and: [{$eq: ['$chats._id', '$sender']}, {$ne: ['$text', '']}]}, '$chats.username', username],
+              },
               text: '$text',
               createdAt: '$createdAt',
             },
@@ -228,7 +232,7 @@ io.on('connection', socket => {
     try {
       const receiver = await User.findOne({username: receiverUsername})
       if (!receiver) {
-        throw new HttpException(StatusCodes.NOT_FOUND, ReasonPhrases.NOT_FOUND, 'User not found!')
+        return socket.emit('error', 'User not found!')
       }
       const message = new Message({
         sender: user._id,
@@ -259,7 +263,7 @@ io.on('connection', socket => {
     try {
       const receiver = await User.findOne({username: receiverUsername})
       if (!receiver) {
-        throw new HttpException(StatusCodes.NOT_FOUND, ReasonPhrases.NOT_FOUND, 'User not found!')
+        return socket.emit('error', 'User not found!')
       }
       const message = new Message({
         sender: user._id,
@@ -289,11 +293,48 @@ io.on('connection', socket => {
     }
   })
 
+  socket.on('delete', async (deletedBy, messageID) => {
+    const message = await Message.findByIdAndUpdate(
+      messageID,
+      {
+        $set: {
+          text: '',
+          deletedBy,
+        },
+      },
+      {new: true},
+    ).populate([
+      {
+        path: 'sender',
+        select: {username: 1, fullName: 1},
+      },
+      {
+        path: 'deletedBy',
+        select: {username: 1, fullName: 1},
+      },
+      {
+        path: 'receiver',
+        select: {username: 1, fullName: 1},
+      },
+    ])
+    if (!message) {
+      return socket.emit('error', {msg: 'Message not found!'})
+    }
+    const {sender, receiver} = message as any
+    if (onlineUsers[sender.username] && onlineUsers[receiver.username]) {
+      message.read = true
+      await message.save()
+      io.to([onlineUsers[sender.username], onlineUsers[receiver.username]]).emit('deletedMessage', message)
+    } else {
+      socket.emit('deletedMessage', message)
+    }
+  })
+
   socket.on('getChat', async (chat: string) => {
     try {
       const chattingUser = await User.findOne({username: chat}).select('fullName username')
       if (!chattingUser) {
-        throw new HttpException(StatusCodes.NOT_FOUND, ReasonPhrases.NOT_FOUND, 'User not found!')
+        return socket.emit('error', 'User not found!')
       }
       const allMessages = await Message.find(
         {
@@ -302,9 +343,22 @@ io.on('connection', socket => {
             {sender: userID, receiver: chattingUser._id},
           ],
         },
-        {sender: 1, read: 1, text: 1},
+        {sender: 1, read: 1, text: 1, deletedBy: 1},
         {sort: {createdAt: 1}},
-      ).populate('sender', 'fullName username')
+      ).populate([
+        {
+          path: 'sender',
+          select: {username: 1, fullName: 1},
+        },
+        {
+          path: 'receiver',
+          select: {username: 1, fullName: 1},
+        },
+        {
+          path: 'deletedBy',
+          select: {username: 1, fullName: 1},
+        },
+      ])
       allMessages.forEach(async message => {
         if (message.sender._id.equals(chattingUser._id) && !message.read) {
           message.read = true

@@ -167,23 +167,78 @@ label[for=files] img {
   height: 90%;
 }
 
+.chatMessage {
+  gap: 1rem;
+}
+
+.chatMessage i {
+  margin-left: -2rem;
+  margin-right: 2rem;
+}
+
+.chatMessage:has(.fromUser) {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  justify-content: end;
+}
+
+.chatMessage:has(.fromSender) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: start;
+}
+
+.chatMessage:hover .bi {
+  visibility: visible;
+  width: 2rem;
+  height: 2rem;
+  color: black;
+}
+
 .fromSender {
-  margin: 1rem auto 1rem 50%;
+  display: flex;
+  width: auto;
+  margin: 1rem;
   padding: 0.5rem;
-  font-size: 1rem;
+  font-size: larger;
   background-color: gray;
   border-radius: 1rem;
 }
 
 .fromUser {
-  margin: 1rem 1rem 1rem auto;
+  display: flex;
+  width: auto;
+  margin: 1rem;
   padding: 0.5rem;
   font-size: larger;
   background-color: cadetblue;
   border-radius: 1rem;
 }
 
-.fromUser i {
-  position: relative;
-  top: 0.5rem;
+.bi {
+  cursor: pointer;
+  display: flex;
+  visibility: hidden;
+  width: 2rem;
+  height: 2rem;
+}
+
+.bi-trash:hover {
+  display: flex;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  background-color: red;
+  fill: white;
+}
+
+.bi-pencil:hover {
+  display: flex;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  background-color: blue;
+  fill: white;
 }

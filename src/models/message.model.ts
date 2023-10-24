@@ -19,7 +19,10 @@ export const MessageSchema = new Schema(
     },
     text: {
       type: String,
-      required: true,
+    },
+    deletedBy: {
+      type: Schema.Types.ObjectId,
+      ref: CollectionNames.USER,
     },
   },
   {timestamps: true},

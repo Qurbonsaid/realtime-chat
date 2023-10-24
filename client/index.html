@@ -53,17 +53,9 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script>
-      var token, refreshToken, selectedChat, loggedUserName, userFullName, socket
+      var token, refreshToken, selectedChat, loggedUserName, loggedUserID, userFullName, socket
       const BACKEND_URL = 'http://localhost:8080'
       const API = BACKEND_URL + '/api'
-
-      const escapeHtml = unsafe =>
-        unsafe
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#039;')
 
       async function doRegister() {
         const fullName = document.querySelector('#reg_fullName').value
@@ -100,6 +92,7 @@
           const res = await data.json()
           document.querySelector('.userInfo').setAttribute('style', 'margin: auto 1em; display: block;')
           document.querySelector('#displayName').innerHTML = 'Hello, ' + res.data.fullName
+          loggedUserID = res.data._id
           loggedUserName = res.data.username
           userFullName = res.data.fullName
           token = res.token
@@ -124,21 +117,43 @@
           socket.on('newMessage', newMessage => {
             if (newMessage) {
               const lastMessage = document.querySelector(
-                '#' + newMessage.sender.username === loggedUserName
+                '#usr_' + newMessage.sender.username === loggedUserName
                   ? loggedUserName
                   : newMessage.receiver.username + ' .lastMessage',
               )
               if (lastMessage)
                 lastMessage.innerHTML =
                   (newMessage.sender.username === loggedUserName ? 'You: ' : newMessage.sender.username) +
-                  newMessage.text
-              document.querySelector('#message').value = ''
+                  chat.lastMessage.text.includes('<')
+                    ? '&#x1F5CE; document'
+                    : chat.lastMessage.text.slice(0, 20) + '...'
               const chatView = document.querySelector('#chat')
-              chatView.innerHTML += `<div class="${
-                newMessage.sender.username === selectedChat ? 'fromSender' : 'fromUser'
-              }">${newMessage.text}
-              ${newMessage.sender.username !== selectedChat && newMessage.read ? '<i>&#10003;</i>' : ''}
-              </div>`
+              chatView.innerHTML +=
+                newMessage.sender.username !== selectedChat
+                  ? `<div class="chatMessage">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="bi bi-pencil" viewBox="0 0 16 16">
+                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="bi bi-trash" onclick="deleteMessage('${loggedUserID}', '${
+                    newMessage._id
+                  }')" viewBox="0 0 16 16">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+                </svg>
+                <div id="msg_${newMessage._id}" class="fromUser">
+                ${newMessage.text}
+              </div>
+              ${newMessage.read ? '<i>&#10003;</i>' : ''}
+            </div>`
+                  : `<div class="chatMessage">
+            <div id="msg_${newMessage._id}" class="fromSender">
+            ${newMessage.text}
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="bi bi-trash" onclick="deleteMessage('${loggedUserID}','${newMessage._id}')" viewBox="0 0 16 16">
+          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+          <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+        </svg>
+      </div>`
               chatView.scrollTop = chatView.scrollHeight
             } else {
               console.error(socket)
@@ -146,15 +161,21 @@
             }
           })
           socket.on('typingEvent', typingUser => {
-            document.querySelector(`#${typingUser} .lastMessage`).innerHTML = '...typing'
-            document.querySelector(`#${typingUser} .lastMessage`).style.color = 'blue'
+            document.querySelector(`#usr_${typingUser} .lastMessage`).innerHTML = '...typing'
+            document.querySelector(`#usr_${typingUser} .lastMessage`).style.color = 'blue'
             setTimeout(() => socket.emit('getChats'), 2000)
           })
           socket.on('userOnline', onlineUser => {
-            document.querySelector(`#${onlineUser} .status`).className = 'status online'
+            document.querySelector(`#usr_${onlineUser} .status`).className = 'status online'
           })
           socket.on('userOffline', offlineUser => {
-            document.querySelector(`#${offlineUser} .status`).className = 'status offline'
+            document.querySelector(`#usr_${offlineUser} .status`).className = 'status offline'
+          })
+          socket.on('messageDeleted', message => {
+            if ([message.sender.username, message.receiver.username].includes(selectedChat)) {
+              socket.emit()
+              socket.emit('getChat', selectedChat)
+            }
           })
         } else {
           console.error(await data.json())
@@ -165,18 +186,20 @@
       function updateChats(chats) {
         const chatsView = document.querySelector('aside')
         chatsView.innerHTML = `<div class="newChat">
-          <button onclick="((input) => {if (input) return getChat('New Chat', input); else return alert('User not found!') })(prompt('Enter username...'))">
-            New Chat</button></div>`
+                <button onclick="((input) => {if (input) return getChat('New Chat', input); else return alert('User not found!') })(prompt('Enter username...'))">
+                  New Chat</button></div>`
         for (const chat of chats) {
-          chatsView.innerHTML += `\n<div class="chat" id="${chat.username}" onclick="getChat('${chat.fullName}', '${
+          chatsView.innerHTML += `\n<div class="chat" id="usr_${chat.username}" onclick="getChat('${chat.fullName}', '${
             chat.username
           }')">
-          <span class="status ${chat.online ? 'online' : 'offline'}">●</span>
-          <span class="chatTitle">${chat.fullName}</span>
-          ${chat.unreadCount ? '<span class="count">' + chat.unreadCount + '</span>' : ''}
-          <span class="lastMessage">${chat.lastMessage.sender === loggedUserName ? 'You' : chat.username}: ${escapeHtml(
-            chat.lastMessage.text,
-          )}</span></div>`
+                <span class="status ${chat.online ? 'online' : 'offline'}">●</span>
+                <span class="chatTitle">${chat.fullName}</span>
+                ${chat.unreadCount ? '<span class="count">' + chat.unreadCount + '</span>' : ''}
+                <span class="lastMessage">${chat.lastMessage.sender === loggedUserName ? 'You' : chat.username}: ${
+                  chat.lastMessage.text.includes('<')
+                    ? '&#x1F5CE; document'
+                    : chat.lastMessage.text.slice(0, 20) + '...'
+                }</span></div>`
         }
       }
 
@@ -197,11 +220,45 @@
         const chatView = document.querySelector('#chat')
         chatView.innerHTML = ''
         messages.forEach(message => {
-          chatView.innerHTML += `<div class="${message.sender.username === selectedChat ? 'fromSender' : 'fromUser'}">${
-            message.text
+          if (message.deletedBy) {
+            chatView.innerHTML += `<div class="chatMessage">
+              <div id="msg_${message._id}" 
+            class="${message.sender._id === loggedUserID ? 'fromUser' : 'fromSender'}">
+            ${
+              message.deletedBy._id === loggedUserID
+                ? 'Deleted message.'
+                : message.deletedBy.fullName + ' deleted this message.'
+            }
+          </div>
+          <div>`
+            return
           }
-          ${message.sender.username !== selectedChat && message.read ? '<i>&#10003;</i>' : ''}
-        </div>`
+          chatView.innerHTML +=
+            message.sender.username !== selectedChat
+              ? `<div class="chatMessage">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="bi bi-pencil" viewBox="0 0 16 16">
+                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="bi bi-trash" onclick="deleteMessage('${loggedUserID}', '${
+                    message._id
+                  }')" viewBox="0 0 16 16">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+                </svg>
+                <div id="msg_${message._id}" class="fromUser">
+                ${message.text}
+              </div>
+              ${message.read ? '<i>&#10003;</i>' : ''}
+            </div>`
+              : `<div class="chatMessage">
+            <div id="msg_${message._id}" class="fromSender">
+            ${message.text}
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" class="bi bi-trash" onclick="deleteMessage('${loggedUserID}','${message._id}')" viewBox="0 0 16 16">
+          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5Zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6Z"/>
+          <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1ZM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118ZM2.5 3h11V2h-11v1Z"/>
+        </svg>
+      </div>`
         })
         chatView.scrollTop = chatView.scrollHeight
       }
@@ -213,14 +270,14 @@
           return true
         }
         document.querySelector('section').innerHTML = `<div class="topBar">
-          <span id="topChatTitle"></span><span id="sender"></span>
-        </div>
-        <div id="chat"></div>
-        <footer>
-          <textarea id="message" onkeyup="typingEvent(event)"></textarea>
-          <label for="files"><img src="./paperclip.png"></label><input id="files" type="file" hidden onchange="sendFile(this.files[0])">
-          <button id="sendButton" onclick="sendMessage()">Send</button>
-        </footer>`
+                <span id="topChatTitle"></span><span id="sender"></span>
+              </div>
+              <div id="chat"></div>
+              <footer>
+                <textarea id="message" onkeyup="typingEvent(event)"></textarea>
+                <label for="files"><img src="./paperclip.png"></label><input id="files" type="file" hidden onchange="sendFile(this.files[0])">
+                <button id="sendButton" onclick="sendMessage()">Send</button>
+              </footer>`
         selectedChat = sender
         const countView = document.querySelector('#' + sender + ' .count')
         if (countView) countView.style.visibility = 'hidden'
@@ -285,6 +342,10 @@
           )
           $('#sendDocument').modal('hide')
         })
+      }
+
+      function deleteMessage(deletedBy, messageID) {
+        socket.emit('delete', deletedBy, messageID)
       }
     </script>
   </body>
